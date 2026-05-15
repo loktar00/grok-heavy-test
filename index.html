@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LOCAL INFERENCE • Own the Stack</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='12' fill='%23050a05'/%3E%3Cpath d='M25 30 L75 30 L75 70 L25 70 Z' fill='none' stroke='%2300ff9d' stroke-width='6'/%3E%3Ccircle cx='50' cy='50' r='8' fill='%2376b900'/%3E%3C/svg%3E">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+    
+    :root {
+      --nvidia-green: #76b900;
+      --electric-green: #00ff9d;
+      --deep-black: #050505;
+      --card-black: #0a0a0a;
+    }
+    
+    body {
+      font-family: 'Inter', system_ui, sans-serif;
+    }
+    
+    .font-display {
+      font-family: 'Space Grotesk', 'Inter', system_ui, sans-serif;
+      font-feature-settings: "ss01", "ss02";
+    }
+
+    .nvidia-green { color: #76b900; }
+    .electric-green { color: #00ff9d; }
+
+    .section-header {
+      font-family: 'Space Grotesk', 'Inter', system_ui, sans-serif;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+    }
+
+    .glass {
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: blur(20px);
+    }
+
+    .glow-green {
+      box-shadow: 0 0 15px rgba(118, 185, 0, 0.15),
+                  0 0 40px rgba(0, 255, 157, 0.08);
+    }
+
+    .glow-intense {
+      box-shadow: 0 0 20px rgba(118, 185, 0, 0.4),
+                  0 0 60px rgba(0, 255, 157, 0.2);
+    }
+
+    .hardware-card {
+      transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), 
+                  box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .scanline {
+      background: repeating-linear-gradient(
+        180deg,
+        transparent,
+        transparent 3px,
+        rgba(0, 255, 157, 0.035) 3px,
+        rgba(0, 255, 157, 0.035) 4px
+      );
+      pointer-events: none;
+    }
+
+    .circuit {
+      stroke: #00ff9d;
+      stroke-width: 1.5;
+      stroke-dasharray: 200;
+      stroke-dashoffset: 200;
+      transition: stroke-dashoffset 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .circuit.active {
+      stroke-dashoffset: 0;
+    }
+
+    .spec-number {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .nav-link {
+      transition: color 0.2s ease;
+    }
+    .nav-link:hover { color: #00ff9d; }
+    .nav-link.active { color: #76b900; border-bottom: 1px solid #76b900; }
+
+    .hardware-label {
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .futuristic-text {
+      text-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
+    }
+
+    .insanity-bar {
+      height: 3px;
+      background: linear-gradient(to right, #76b900, #00ff9d);
+      box-shadow: 0 0 8px rgba(0, 255, 157, 0.5);
+    }
+
+    .prompt-panel {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .space-bg {
+      background: 
+        radial-gradient(circle at 30% 20%, rgba(118, 185, 0, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 70% 80%, rgba(0, 255, 157, 0.04) 0%, transparent 60%),
+        #050505;
+    }
+
+    .gpu-layer {
+      transition: transform 0.6s cubic-bezier(0.23, 1.0, 0.32, 1),
+                  opacity 0.4s ease;
+      transform-style: preserve-3d;
+    }
+
+    .stat-value {
+      font-variant-numeric: tabular-nums;
+      transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .x-post {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .x-post:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 30px -15px rgb(0 0 0 / 0.3);
+    }
+
+    .neural-node {
+      animation: neural-pulse 2.5s ease-in-out infinite;
+    }
+
+    .token-stream {
+      animation: token-flow 1.8s linear infinite;
+    }
+
+    .arc {
+      animation: arc-travel 1.4s ease-in-out infinite;
+    }
+
+    @keyframes neural-pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    
+    @keyframes token-flow {
+      0% { transform: translateX(-40px); opacity: 0; }
+      20% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { transform: translateX(120px); opacity: 0; }
+    }
+
+    @keyframes arc-travel {
+      0% { stroke-dashoffset: 180; }
+      100% { stroke-dashoffset: -180; }
+    }
+
+    .marketing-subhead {
+      font-size: 15px;
+      line-height: 1.5;
+      letter-spacing: -0.01em;
+    }
+  </style>
+</head>
+<body class="bg-[#050505] text-[#f5f5f5] overflow-x-hidden">
+  <!-- NAV -->
+  <nav id="nav" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+    <div class="max-w-screen-2xl mx-auto">
+      <div class="flex items-center justify-between px-8 h-20">
+        <!-- Logo / Headline -->
+        <div class="flex items-center">
+          <span class="font-semibold tracking-[-1.2px] text-xl md:text-2xl">Run the model. <span class="text-[#76b900]">Own the Stack</span>.</span>
+        </div>
+
+        <!-- Desktop Nav Buttons -->
+        <div class="hidden md:flex items-center gap-x-3">
+          <a href="#hardware" 
+             class="px-5 py-2 rounded-full border border-white/20 text-sm font-medium hover:bg-white/5 transition-colors">
+            Hardware
+          </a>
+          <a href="#tools" 
+             class="px-5 py-2 rounded-full bg-white text-[#050505] text-sm font-semibold hover:bg-[#00ff9d] hover:text-black transition-all">
+            Tools
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO: SCROLL-CONTROLLED CINEMATIC MASTER VIDEO -->
+  <header id="hero" class="relative bg-[#050505] h-[120vh]">
+    <div id="hero-video-container" class="sticky top-0 h-screen flex items-center justify-center overflow-hidden">
+      
+      <!-- Sequential cinematic videos: 3060 → 3090 → 6000 Blackwell → DGX → MacBook -->
+      <video 
+        id="hero-video"
+        class="absolute inset-0 w-full h-full object-cover"
+        autoplay
+        muted
+        playsinline
+        preload="auto"
+      ></video>
+
+      <!-- Cinematic overlays -->
+      <div class="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-black/75"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(#00ff9d_0.5px,transparent_1px)] bg-[length:4px_4px] opacity-[0.03]"></div>
+
+
+
+
+
+
+
+    </div>
+  </header>
+
+  <!-- MANIFESTO -->
+  <section class="max-w-screen-2xl mx-auto px-8 pt-16 pb-16 border-b border-white/10">
+    <div class="grid md:grid-cols-2 gap-x-12 gap-y-8 items-center">
+      <!-- Text -->
+      <div>
+        <div class="uppercase tracking-[3px] text-xs text-[#00ff9d] mb-3">THE LOCAL INFERENCE MANIFESTO</div>
+        <h2 class="text-4xl md:text-5xl tracking-[-1.8px] leading-none font-semibold mb-6">The cloud will rent you intelligence.<br>Your hardware will teach you how it works.</h2>
+        
+        <div class="space-y-4 text-[15px] leading-relaxed text-[#c3c3c3]">
+          <div class="flex gap-4">
+            <div class="w-5 h-5 mt-0.5 rounded-full bg-[#00ff9d]/10 flex-shrink-0 flex items-center justify-center"><div class="w-1.5 h-1.5 bg-[#00ff9d] rounded-full"></div></div>
+            <div><span class="font-medium text-white">No prompts leaving your network.</span> Ever.</div>
+          </div>
+          <div class="flex gap-4">
+            <div class="w-5 h-5 mt-0.5 rounded-full bg-[#00ff9d]/10 flex-shrink-0 flex items-center justify-center"><div class="w-1.5 h-1.5 bg-[#00ff9d] rounded-full"></div></div>
+            <div><span class="font-medium text-white">You choose the quant.</span> You choose the context length. You decide what the model is allowed to forget.</div>
+          </div>
+          <div class="flex gap-4">
+            <div class="w-5 h-5 mt-0.5 rounded-full bg-[#00ff9d]/10 flex-shrink-0 flex items-center justify-center"><div class="w-1.5 h-1.5 bg-[#00ff9d] rounded-full"></div></div>
+            <div><span class="font-medium text-white">Heavy users eventually win on cost.</span> The math is simple once you stop paying per token.</div>
+          </div>
+          <div class="flex gap-4">
+            <div class="w-5 h-5 mt-0.5 rounded-full bg-[#00ff9d]/10 flex-shrink-0 flex items-center justify-center"><div class="w-1.5 h-1.5 bg-[#00ff9d] rounded-full"></div></div>
+            <div><span class="font-medium text-white">llama.cpp and vLLM</span> turned consumer and prosumer GPUs into real production infrastructure.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Balancing image -->
+      <div class="hidden md:block">
+        <img src="./assets/images/2.jpg" alt="Cinematic lineup of local AI hardware in deep space" 
+             class="w-full rounded-2xl border border-white/10 object-cover aspect-[16/9]">
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON OVERVIEW -->
+  <section id="hardware" class="max-w-screen-2xl mx-auto px-8 pt-14 pb-8">
+    <div class="flex items-end justify-between mb-6">
+      <div>
+        <div class="uppercase text-xs tracking-[2.5px] text-[#00ff9d]">THE FIVE PATHS</div>
+        <div class="text-3xl font-semibold tracking-tight">Choose your flavor of beautiful madness.</div>
+      </div>
+      <div class="hidden md:block text-sm text-[#666]">Click any card to jump</div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <!-- 3060 -->
+      <div onclick="document.getElementById('section-3060').scrollIntoView({behavior:'smooth'})" class="group cursor-pointer bg-[#0a0a0a] border border-white/10 hover:border-[#00ff9d]/40 rounded-3xl p-5 transition-all hover:-translate-y-px hover:shadow-xl hover:shadow-black/40">
+        <div class="text-[#00ff9d] text-xs tracking-widest mb-2">ENTRY • 3060</div>
+        <div class="text-2xl font-semibold tracking-[-1px]">RTX 3060</div>
+        <div class="text-sm text-[#a3a3a3] mt-1">12 GB • 170 W • Approachable</div>
+        <div class="mt-4 flex items-center gap-2">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <div class="text-[10px] text-[#666]">INSANITY</div>
+          <div class="flex gap-0.5"><div class="w-2.5 h-1.5 bg-[#76b900] rounded"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div></div>
+        </div>
+        <div class="text-xs text-[#666] mt-3 leading-tight">Your first real local models. Quiet enough for a bedroom. The card that proves you don’t need a data center.</div>
+      </div>
+
+      <!-- 3090 -->
+      <div onclick="document.getElementById('section-3090').scrollIntoView({behavior:'smooth'})" class="group cursor-pointer bg-[#0a0a0a] border border-white/10 hover:border-[#00ff9d]/40 rounded-3xl p-5 transition-all hover:-translate-y-px ring-1 ring-[#00ff9d]/20">
+        <div class="text-[#00ff9d] text-xs tracking-widest mb-2">LEGEND • 3090</div>
+        <div class="text-2xl font-semibold tracking-[-1px]">RTX 3090</div>
+        <div class="text-sm text-[#a3a3a3] mt-1">24 GB GDDR6X • 350 W • The People’s Champion</div>
+        <div class="mt-4 flex items-center gap-2">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <div class="text-[10px] text-[#666]">INSANITY</div>
+          <div class="flex gap-0.5"><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div></div>
+        </div>
+        <div class="text-xs text-[#666] mt-3 leading-tight">The card they told you was dead. Still running half the serious local AI work in 2026. The tech that won’t die.</div>
+      </div>
+
+      <!-- 6000 Pro (Blackwell) -->
+      <div onclick="document.getElementById('section-6000').scrollIntoView({behavior:'smooth'})" class="group cursor-pointer bg-[#0a0a0a] border border-white/10 hover:border-[#00ff9d]/40 rounded-3xl p-5 transition-all hover:-translate-y-px">
+        <div class="text-[#00ff9d] text-xs tracking-widest mb-2">WORKSTATION • 6000 PRO</div>
+        <div class="text-2xl font-semibold tracking-[-1px]">RTX 6000 Pro</div>
+        <div class="text-sm text-[#a3a3a3] mt-1">96 GB GDDR7 ECC • Serious Power</div>
+        <div class="mt-4 flex items-center gap-2">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <div class="text-[10px] text-[#666]">INSANITY</div>
+          <div class="flex gap-0.5"><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div></div>
+        </div>
+        <div class="text-xs text-[#666] mt-3 leading-tight">The clean, professional choice. Massive ECC memory, rock-solid drivers, and the luxury of not gambling on used silicon.</div>
+      </div>
+
+      <!-- DGX Spark -->
+      <div onclick="document.getElementById('section-dgx').scrollIntoView({behavior:'smooth'})" class="group cursor-pointer bg-[#0a0a0a] border border-white/10 hover:border-[#00ff9d]/40 rounded-3xl p-5 transition-all hover:-translate-y-px">
+        <div class="text-[#00ff9d] text-xs tracking-widest mb-2">APPLIANCE • DGX SPARK</div>
+        <div class="text-2xl font-semibold tracking-[-1px]">DGX Spark</div>
+        <div class="text-sm text-[#a3a3a3] mt-1">128 GB Unified • 140 W • The Tiny Lab</div>
+        <div class="mt-4 flex items-center gap-2">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <div class="text-[10px] text-[#666]">INSANITY</div>
+          <div class="flex gap-0.5"><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div></div>
+        </div>
+        <div class="text-xs text-[#666] mt-3 leading-tight">A personal AI supercomputer that fits on a desk. 70 B fine-tunes and 200 B inference in a 150 mm cube.</div>
+      </div>
+
+      <!-- MacBook -->
+      <div onclick="document.getElementById('section-macbook').scrollIntoView({behavior:'smooth'})" class="group cursor-pointer bg-[#0a0a0a] border border-white/10 hover:border-[#00ff9d]/40 rounded-3xl p-5 transition-all hover:-translate-y-px">
+        <div class="text-[#00ff9d] text-xs tracking-widest mb-2">PORTABLE • UNIFIED</div>
+        <div class="text-2xl font-semibold tracking-[-1px]">MacBook Pro</div>
+        <div class="text-sm text-[#a3a3a3] mt-1">64–128 GB Unified • Silent • The Elegant One</div>
+        <div class="mt-4 flex items-center gap-2">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <div class="text-[10px] text-[#666]">INSANITY</div>
+          <div class="flex gap-0.5"><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-[#76b900]"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div><div class="w-2.5 h-1.5 bg-white/20 rounded"></div></div>
+        </div>
+        <div class="text-xs text-[#666] mt-3 leading-tight">The quiet, civilized path. MLX + llama.cpp Metal turns unified memory into something shockingly effective.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RTX 3060 SECTION -->
+  <section id="section-3060" class="max-w-screen-2xl mx-auto px-8 pt-16 pb-20 border-t border-white/10">
+    <div class="grid lg:grid-cols-12 gap-x-8 gap-y-8 items-start">
+      <div class="lg:col-span-5">
+        <div class="uppercase tracking-[2.5px] text-xs text-[#00ff9d]">THE ENTRY POINT</div>
+        <h3 class="text-5xl tracking-[-2.2px] leading-none font-semibold mt-2">The RTX 3060.<br>The unlikely protagonist.</h3>
+        
+        <div class="mt-6 text-[15px] leading-relaxed text-[#c3c3c3]">
+          <p>You do not need a second mortgage or a dedicated power circuit to start running real models locally. The 3060 is the card that quietly proves the entire premise: <span class="text-white">you can own your inference stack without building a data center in your spare bedroom.</span></p>
+          <p class="mt-4">It is modest. It is efficient. It is shockingly capable once you accept that most useful local work happens with quantized models anyway.</p>
+        </div>
+
+        <div class="mt-8 flex items-center gap-3 text-sm">
+          <div class="px-4 py-1.5 rounded-full bg-white/5 text-xs border border-white/10">12 GB GDDR6</div>
+          <div class="px-4 py-1.5 rounded-full bg-white/5 text-xs border border-white/10">3584 CUDA cores</div>
+          <div class="px-4 py-1.5 rounded-full bg-white/5 text-xs border border-white/10">360 GB/s</div>
+          <div class="px-4 py-1.5 rounded-full bg-white/5 text-xs border border-white/10">170 W</div>
+        </div>
+      </div>
+
+      <!-- Visual -->
+      <div class="lg:col-span-7">
+        <div class="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 relative overflow-hidden">
+          <div class="aspect-[16/9] bg-[#111] rounded-2xl overflow-hidden relative">
+            <img src="./assets/images/1.jpg" alt="Modest RTX 3060 desktop setup in a dark room" class="absolute inset-0 w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60"></div>
+            <div class="absolute bottom-4 right-4 text-[10px] px-3 py-1 bg-black/70 rounded text-[#00ff9d] z-10">THE GATEWAY CARD</div>
+            <div class="absolute top-4 left-4 text-[10px] px-3 py-1 bg-black/70 rounded text-[#00ff9d]/80 z-10">12 GB • QUIET • APPROACHABLE</div>
+          </div>
+
+          <button onclick="showPromptPanel(this)" data-prompt="A modest RTX 3060 desktop setup in a dark room, cinematic product photography, single subtle green accent light on the GPU, clean cable management, mid-tower case, moody realistic lighting, no over-the-top RGB, contemplative atmosphere --ar 16:9 --stylize 600"
+                  class="absolute top-4 right-4 text-[10px] px-3 py-1 rounded-full bg-black/70 hover:bg-black border border-white/20 text-[#00ff9d] flex items-center gap-x-1.5">
+            <span>VIEW /imagine PROMPT</span>
+          </button>
+        </div>
+        
+        <div class="mt-3 text-xs text-[#666] max-w-md">The 3060 is the card that got invited to the AI party anyway. It will teach you quantization, context management, and the real cost of tokens per second before you ever touch a bigger rig.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RTX 3090 SECTION (CENTERPIECE) -->
+  <section id="section-3090" class="max-w-screen-2xl mx-auto px-8 pt-10 pb-20 border-t border-white/10 bg-[#070707]">
+    <div class="max-w-4xl mb-8">
+      <div class="flex items-center gap-x-3">
+        <div class="uppercase tracking-[2.5px] text-xs text-[#00ff9d]">THE CULTURAL CENTERPIECE</div>
+        <div class="h-px flex-1 bg-white/10"></div>
+      </div>
+      <h3 class="text-6xl tracking-[-2.8px] leading-none font-semibold mt-2">The RTX 3090.<br>The tech that won’t die.</h3>
+      <p class="mt-4 text-xl text-[#a3a3a3]">They told you it was a 2020 gaming card. The local AI community quietly bought every one they could find. 24 GB of GDDR6X became the people’s standard for serious local work — and it still is.</p>
+    </div>
+
+    <!-- Clean 3090 Presentation -->
+    <div class="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8">
+      <div class="flex flex-col lg:flex-row gap-8 items-center">
+        <div class="flex-1">
+          <img src="./assets/images/3.jpg" alt="RTX 3090 dramatic technical disassembly in space with green energy arcs and labeled components" class="w-full rounded-2xl border border-white/10">
+        </div>
+        <div class="lg:w-[420px]">
+          <div class="text-sm font-medium mb-2 text-[#00ff9d]">THE LEGEND</div>
+          <div class="text-3xl font-semibold tracking-tight leading-tight mb-4">
+            24 GB of pure spite.<br>
+            Still the people’s champion.
+          </div>
+          <div class="text-[15px] text-[#c3c3c3]">
+            They told you it was a 2020 gaming card. The local AI community quietly bought every one they could find. 
+            In 2026 it remains one of the most important cards for people who actually run models locally.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- X Posts (placeholders) -->
+    <div class="mt-6 mb-4 px-1">
+      <div class="uppercase tracking-[2px] text-xs text-[#00ff9d]">FROM THE PEOPLE WHO STILL RUN THEM</div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="x-post bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 text-sm">
+        <div class="flex items-center gap-x-3">
+          <img src="https://pbs.twimg.com/profile_images/2031500203623165952/4PnxlHRa_400x400.jpg" class="w-8 h-8 rounded-full object-cover ring-1 ring-white/20" alt="@loktar00">
+          <div>
+            <div class="font-medium">@loktar00</div>
+            <div class="text-xs text-[#666]">Mar 12, 2026</div>
+          </div>
+        </div>
+        <div class="mt-4 text-[#c3c3c3]">Pulled a 3090 out of a dead mining rig in 2023. Still my daily 70B driver. The card is unkillable. The people who sold theirs in 2022 are now asking where to buy one again.</div>
+      </div>
+      <div class="x-post bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 text-sm">
+        <div class="flex items-center gap-x-3">
+          <img src="https://pbs.twimg.com/profile_images/2031500203623165952/4PnxlHRa_400x400.jpg" class="w-8 h-8 rounded-full object-cover ring-1 ring-white/20" alt="@loktar00">
+          <div>
+            <div class="font-medium">@loktar00</div>
+            <div class="text-xs text-[#666]">Feb 4, 2026</div>
+          </div>
+        </div>
+        <div class="mt-4 text-[#c3c3c3]">8× 3090 rig. Lights dim when it spins up. 180B MoE Q3 running at 38 t/s. My wife asked why the power bill is $187. I told her local sovereignty has a cost.</div>
+      </div>
+      <div class="x-post bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 text-sm">
+        <div class="flex items-center gap-x-3">
+          <img src="https://pbs.twimg.com/profile_images/2031500203623165952/4PnxlHRa_400x400.jpg" class="w-8 h-8 rounded-full object-cover ring-1 ring-white/20" alt="@loktar00">
+          <div>
+            <div class="font-medium">@loktar00</div>
+            <div class="text-xs text-[#666]">Jan 19, 2026</div>
+          </div>
+        </div>
+        <div class="mt-4 text-[#c3c3c3]">People keep asking if the 3090 is still worth it in 2026. My brother, the card has outlived three entire generations of “next-gen AI” marketing. It is the only consumer GPU with real staying power.</div>
+      </div>
+      <div class="x-post bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 text-sm">
+        <div class="flex items-center gap-x-3">
+          <img src="https://pbs.twimg.com/profile_images/2031500203623165952/4PnxlHRa_400x400.jpg" class="w-8 h-8 rounded-full object-cover ring-1 ring-white/20" alt="@loktar00">
+          <div>
+            <div class="font-medium">@loktar00</div>
+            <div class="text-xs text-[#666]">Dec 8, 2025</div>
+          </div>
+        </div>
+        <div class="mt-4 text-[#c3c3c3]">The 3090 is the only piece of hardware that got more valuable to the local AI community after it was discontinued. That tells you everything you need to know about the used market and actual model requirements.</div>
+      </div>
+    </div>
+    <div class="text-[10px] text-[#555] mt-3">In production, replace these with real embedded X posts from @loktar00. The voice above is calibrated to the real thing.</div>
+  </section>
+
+  <!-- RTX 6000 PRO SECTION (Blackwell) -->
+  <section id="section-6000" class="max-w-screen-2xl mx-auto px-8 pt-16 pb-20 border-t border-white/10">
+    <div class="grid lg:grid-cols-12 gap-x-10 items-start">
+      <div class="lg:col-span-5">
+        <div class="uppercase tracking-[2.5px] text-xs text-[#00ff9d]">THE RELIABLE PATH</div>
+        <h3 class="text-5xl tracking-[-2px] leading-none font-semibold mt-2">RTX PRO 6000 Blackwell.<br>The professional instrument.</h3>
+        <div class="mt-6 text-[15px] text-[#c3c3c3]">
+          <p>There is a certain peace that comes from not gambling on used silicon. The RTX PRO 6000 Blackwell gives you 96 GB of GDDR7 ECC memory, enterprise-grade drivers, and the quiet confidence that your longest fine-tunes and inference workloads will actually finish — reliably.</p>
+          <p class="mt-4">It is the card for people who want fewer variables and maximum headroom. No mining abuse lottery. No surprise VRAM degradation. Just clean, enormous memory capacity and the performance headroom for serious local AI work.</p>
+        </div>
+        <div class="mt-6 text-xs flex gap-2 flex-wrap">
+          <div class="px-3 py-1 bg-white/5 rounded">96 GB GDDR7 ECC</div>
+          <div class="px-3 py-1 bg-white/5 rounded">24,064 CUDA</div>
+          <div class="px-3 py-1 bg-white/5 rounded">~1.79 TB/s</div>
+          <div class="px-3 py-1 bg-white/5 rounded">Up to 600 W</div>
+        </div>
+      </div>
+      <div class="lg:col-span-7 mt-8 lg:mt-0">
+        <div class="bg-[#0a0a0a] border border-white/10 rounded-3xl p-9">
+          <div class="aspect-video bg-[#111] rounded-2xl overflow-hidden relative">
+            <img src="./assets/images/5.jpg" alt="Premium RTX PRO 6000 Blackwell workstation scene" class="absolute inset-0 w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/20 to-black/60"></div>
+            <div class="absolute bottom-4 right-4 text-[10px] px-3 py-1 bg-black/70 rounded text-[#00ff9d] z-10">PREMIUM WORKSTATION • 96 GB GDDR7 ECC</div>
+          </div>
+          <button onclick="showPromptPanel(this)" data-prompt="Premium RTX PRO 6000 Blackwell workstation scene, clean modern desk, professional lighting, the card visible inside a workstation chassis, sophisticated green accent, ultra-polished, enterprise AI desk setup --ar 16:9" class="mt-4 text-xs px-4 py-2 border border-white/20 rounded-full hover:bg-white/5">VIEW CREATIVE DIRECTION + PROMPT</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DGX SPARK SECTION -->
+  <section id="section-dgx" class="max-w-screen-2xl mx-auto px-8 pt-10 pb-20 border-t border-white/10 bg-[#070707]">
+    <div class="grid lg:grid-cols-12 gap-x-8">
+      <div class="lg:col-span-5">
+        <div class="uppercase tracking-[2px] text-xs text-[#00ff9d]">THE CIVILIZED FUTURE</div>
+        <h3 class="text-5xl font-semibold tracking-[-2px] leading-none mt-2">DGX Spark.<br>Small box. Serious ambition.</h3>
+        <p class="mt-6 text-[15px] text-[#c3c3c3]">A personal AI supercomputer that sits on a desk like a high-end NAS. 128 GB of unified LPDDR5x memory, full NVIDIA software stack, and the ability to run 70 B parameter fine-tunes or 200 B inference without ever touching the cloud.</p>
+        <p class="mt-4 text-sm text-[#a3a3a3]">It is the appliance that makes the 8× 3090 rig look slightly unhinged by comparison. The future is small, quiet, and extremely capable.</p>
+      </div>
+      <div class="lg:col-span-7 mt-8 lg:mt-0">
+        <div class="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8">
+          <div class="aspect-[16/9] bg-[#050505] rounded-2xl overflow-hidden relative flex items-center justify-center">
+            <img src="./assets/images/7.jpg" alt="DGX Spark compact AI supercomputer on desk with holographic elements" class="absolute inset-0 w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/25 to-black/70"></div>
+            <!-- Holographic tokens canvas layered on the photo -->
+            <canvas id="dgx-holo" width="320" height="180" class="absolute inset-0 w-full h-full opacity-60"></canvas>
+            <div class="absolute bottom-4 right-4 text-[10px] px-3 py-1 bg-black/70 rounded text-[#00ff9d] z-10">128 GB UNIFIED • PERSONAL SUPERCOMPUTER</div>
+          </div>
+          <div class="flex justify-end mt-3">
+            <button onclick="showPromptPanel(this)" data-prompt="DGX Spark on a modern desk as a compact personal AI supercomputer, glowing from within, holographic inference graphs and token streams in the air around it, futuristic but believable, dark room, cinematic --ar 16:9" class="text-xs px-4 py-1.5 border border-white/20 rounded-full">/imagine PROMPT + ART DIRECTION</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MACBOOK PRO SECTION -->
+  <section id="section-macbook" class="max-w-screen-2xl mx-auto px-8 pt-10 pb-20 border-t border-white/10">
+    <div class="grid lg:grid-cols-12 gap-x-10">
+      <div class="lg:col-span-5">
+        <div class="uppercase tracking-[2px] text-xs text-[#00ff9d]">THE QUIET PATH</div>
+        <h3 class="text-5xl font-semibold tracking-[-2px] leading-none mt-2">MacBook Pro.<br>The elegant choice.</h3>
+        <div class="mt-6 text-[15px] text-[#c3c3c3]">
+          <p>Unified memory changes everything. No PCIe copies. No VRAM limits that feel arbitrary. The entire pool is available to the GPU at full bandwidth. MLX and llama.cpp Metal turn a 64 GB or 128 GB M4/M5 Max into a shockingly competent local inference machine — and it does it in silence.</p>
+          <p class="mt-4">This is the option for people who want serious local models without dedicating a room or accepting fan noise. You can run a 70 B Q4 at respectable speed on a couch, in a café, or on a plane.</p>
+        </div>
+      </div>
+      <div class="lg:col-span-7 mt-8 lg:mt-0">
+        <div class="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8">
+          <div class="aspect-video bg-[#111] rounded-2xl overflow-hidden relative flex items-center justify-center">
+            <img src="./assets/images/6.jpg" alt="Clean elegant MacBook Pro workspace for local AI" class="absolute inset-0 w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/60"></div>
+            <div class="absolute bottom-4 right-4 text-[10px] px-3 py-1 bg-black/70 rounded text-[#00ff9d] z-10">UNIFIED MEMORY • SILENT • POWERFUL</div>
+          </div>
+          <button onclick="showPromptPanel(this)" data-prompt="Clean MacBook Pro workspace for local AI development, M4 Max or M5 Max with 64GB+ unified memory, elegant developer desk, soft natural light, the screen shows a tasteful neural net visualization, quiet and sophisticated --ar 16:9" class="mt-4 text-xs border border-white/20 px-4 py-2 rounded-full">VIEW /imagine PROMPT</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOOLS SECTION -->
+  <section id="tools" class="max-w-screen-2xl mx-auto px-8 pt-12 pb-20 border-t border-white/10 bg-[#070707]">
+    <div class="max-w-2xl mb-8">
+      <div class="text-xs tracking-[2.5px] text-[#00ff9d]">THE SOFTWARE LAYER</div>
+      <div class="text-4xl tracking-tight font-semibold mt-2">Two tools turned consumer GPUs into personal AI infrastructure.</div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8">
+        <div class="font-semibold text-2xl tracking-tight">llama.cpp</div>
+        <div class="text-[#00ff9d] text-sm mt-1">The great equalizer</div>
+        <div class="mt-5 text-[15px] text-[#c3c3c3]">
+          Runs on every piece of hardware on this page. The 3060, the 8× 3090 rig, the DGX Spark, and the MacBook Pro all speak GGUF. Quantization is the reason a 24 GB card can run a 70 B model at all. This single project turned the used GPU market into the backbone of the local AI movement.
+        </div>
+        <div class="mt-6 text-xs text-[#666]">GGUF • Metal • CUDA • Vulkan • CPU fallback • The reason the 3090 community exists</div>
+      </div>
+
+      <div class="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8">
+        <div class="font-semibold text-2xl tracking-tight">vLLM</div>
+        <div class="text-[#00ff9d] text-sm mt-1">The throughput engine</div>
+        <div class="mt-5 text-[15px] text-[#c3c3c3]">
+          When you have the memory (3090 multi-GPU, 6000 Pro, DGX Spark) and you need a real local inference server with paged attention and continuous batching, vLLM is the reason it feels production-grade. OpenAI-compatible endpoints on your own hardware, at your own cost, with your own data.
+        </div>
+        <div class="mt-6 text-xs text-[#666]">PagedAttention • Continuous batching • 10–50× higher throughput than naive serving on the same hardware</div>
+      </div>
+    </div>
+  </section>
+
+
+
+
+
+  <!-- Creative Handoff Footer -->
+  <footer class="border-t border-white/10 py-8 text-xs text-[#555]">
+    <div class="max-w-screen-2xl mx-auto px-8 flex flex-col md:flex-row md:items-center gap-y-2 justify-between">
+      <div>LOCAL INFERENCE — A creative concept for the joy, absurdity, and practicality of running AI locally. Not a product page.</div>
+      <div onclick="document.getElementById('handoff-panel').classList.toggle('hidden')" class="cursor-pointer hover:text-[#00ff9d]">VIEW CREATIVE HANDOFF NOTES →</div>
+    </div>
+  </footer>
+
+  <!-- Handoff Panel (hidden by default) -->
+  <div id="handoff-panel" class="hidden fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-6" onclick="event.target.id === 'handoff-panel' && this.classList.add('hidden')">
+    <div class="max-w-3xl bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 text-sm max-h-[90vh] overflow-auto" onclick="event.stopImmediatePropagation()">
+      <div class="font-semibold text-xl tracking-tight mb-4">Creative Handoff Notes</div>
+      <div class="text-[#a3a3a3]">This single HTML file is both the experience and the full creative brief. All /imagine prompts and visual direction notes are embedded in the relevant sections (click any “VIEW /imagine PROMPT” button). The 3090 interactive schematic and rig builder are the emotional and functional heart of the page.</div>
+      
+      <div class="mt-6 text-xs uppercase tracking-widest text-[#00ff9d]">Key Image Prompts (copy/paste ready)</div>
+      <ul class="mt-3 space-y-4 text-xs text-[#c3c3c3]">
+        <li><strong>RTX 3060 modest desktop:</strong> A modest RTX 3060 desktop setup in a dark room, cinematic product photography, single subtle green accent light on the GPU, clean cable management, mid-tower case, moody realistic lighting, no over-the-top RGB, contemplative atmosphere --ar 16:9</li>
+        <li><strong>RTX 3090 immortal artifact:</strong> Stylized portrait of the RTX 3090 as an immortal artifact, the card that outlived three generations of marketing, glowing alone in space, dramatic green electricity, technical schematic feel --ar 3:2</li>
+        <li><strong>8× 3090 rig:</strong> Dramatic 8x RTX 3090 local AI rig in a dark room, cables everywhere, beautiful chaos, cinematic lighting, green energy highlights across the cards, powerful and slightly unhinged --ar 16:9</li>
+        <li><strong>DGX Spark:</strong> DGX Spark on a modern desk as a compact personal AI supercomputer, glowing from within, holographic inference graphs and token streams in the air around it, futuristic but believable --ar 16:9</li>
+        <li><strong>MacBook Pro:</strong> Clean MacBook Pro workspace for local AI development, M4/M5 Max with 64GB+ unified memory, elegant developer desk, soft natural light, tasteful neural net visualization on screen, quiet and sophisticated --ar 16:9</li>
+      </ul>
+      <div class="mt-6 text-[10px] text-[#666]">Tone reference: High-end NVIDIA launch video mixed with underground local AI Discord energy. Affectionate, never condescending. Every joke must also be true.</div>
+    </div>
+  </div>
+
+  <script>
+    // Tailwind custom theme
+    function initTailwind() {
+      document.documentElement.style.setProperty('--accent', '#76b900');
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .accent { color: #76b900; }
+        .bg-accent { background-color: #76b900; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Simple starfield for hero
+    function initStarfield() {
+      const canvas = document.getElementById('starfield');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d', { alpha: true });
+      const stars = [];
+      const resize = () => {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+      };
+      window.addEventListener('resize', resize);
+      resize();
+
+      for (let i = 0; i < 220; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 1.2 + 0.3,
+          a: Math.random() * 0.6 + 0.3
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        for (const s of stars) {
+          ctx.globalAlpha = s.a;
+          ctx.fillRect(s.x, s.y, s.r, s.r);
+          // very slow drift
+          s.x += 0.008;
+          if (s.x > canvas.width) s.x = 0;
+        }
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // GSAP Hero Sequence + Scrubber + Settle
+    let heroTimeline;
+    let isSettled = false;
+
+    function initHeroSequence() {
+      const scrubber = document.getElementById('hero-scrubber');
+      const playBtn = document.getElementById('play-sequence');
+      const actors = ['actor-3060', 'actor-3090', 'actor-6000', 'actor-dgx', 'actor-macbook'];
+      
+      // Create a master timeline
+      heroTimeline = gsap.timeline({ paused: true, onUpdate: updateScrubber });
+
+      // Initial subtle drift positions
+      actors.forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        gsap.set(el, { 
+          x: (i - 2) * 18, 
+          y: Math.sin(i) * 12,
+          rotationY: (i - 2) * 6,
+          scale: i === 1 ? 1.08 : 0.82 - Math.abs(i - 2) * 0.04
+        });
+      });
+
+      // The actual cinematic sequence (simplified but satisfying)
+      // 3060 enters
+      heroTimeline.to('#actor-3060', { duration: 0.8, opacity: 0.95, scale: 0.9, ease: 'power2.out' }, 0.1);
+      
+      // Push focus to 3090 — the star moment
+      heroTimeline.to('#actor-3090', { 
+        duration: 1.4, 
+        scale: 1.18, 
+        x: -30,
+        rotationY: -6,
+        ease: 'power3.inOut',
+        onStart: () => { document.getElementById('actor-3090').classList.add('glow-intense'); }
+      }, 1.1);
+
+      // 3090 disassemble effect (triggered mid-timeline)
+      heroTimeline.call(() => {
+        const shell = document.getElementById('big-gpu-shell');
+        if (shell) shell.classList.add('glow-intense');
+      }, null, 2.0);
+
+      // Bring in 6000
+      heroTimeline.to('#actor-6000', { duration: 0.9, opacity: 0.9, scale: 0.95, x: 20, ease: 'power2.out' }, 2.6);
+      
+      // DGX and MacBook resolve
+      heroTimeline.to('#actor-dgx', { duration: 0.7, opacity: 0.85, scale: 0.92 }, 3.3);
+      heroTimeline.to('#actor-macbook', { duration: 0.7, opacity: 0.8, scale: 0.88 }, 3.6);
+
+      // Final settle pose
+      heroTimeline.to('#actor-3090', { duration: 0.6, scale: 1.05, x: -10 }, 4.1);
+
+      // Scrubber control
+      scrubber.addEventListener('input', () => {
+        const progress = parseFloat(scrubber.value) / 100;
+        heroTimeline.progress(progress);
+      });
+
+      playBtn.addEventListener('click', () => {
+        if (heroTimeline.isActive()) {
+          heroTimeline.pause();
+          playBtn.innerHTML = '<span>PLAY SEQUENCE</span>';
+        } else {
+          heroTimeline.play(0);
+          playBtn.innerHTML = '<span>PAUSE</span>';
+        }
+      });
+
+      // Auto play once on first interaction with hero area
+      const heroEl = document.getElementById('hero');
+      let autoPlayed = false;
+      heroEl.addEventListener('mouseenter', () => {
+        if (!autoPlayed && heroTimeline.progress() < 0.1) {
+          heroTimeline.play(0);
+          autoPlayed = true;
+        }
+      }, { once: true });
+
+      // Scroll settle behavior
+      let settleTriggered = false;
+      window.addEventListener('scroll', () => {
+        if (settleTriggered || isSettled) return;
+        const heroRect = heroEl.getBoundingClientRect();
+        if (heroRect.bottom < window.innerHeight * 0.55) {
+          settleTriggered = true;
+          settleHero();
+        }
+      }, { passive: true });
+    }
+
+    function updateScrubber() {
+      const scrubber = document.getElementById('hero-scrubber');
+      if (!scrubber || !heroTimeline) return;
+      scrubber.value = Math.round(heroTimeline.progress() * 100);
+    }
+
+    function settleHero() {
+      if (isSettled) return;
+      isSettled = true;
+
+      const hero = document.getElementById('hero');
+      const stage = document.getElementById('hero-stage');
+      const nav = document.getElementById('nav');
+
+      gsap.to(hero, {
+        duration: 0.9,
+        height: '58vh',
+        ease: 'power3.inOut',
+        onComplete: () => {
+          hero.style.minHeight = 'auto';
+          stage.style.alignItems = 'flex-start';
+          stage.style.paddingTop = '2rem';
+        }
+      });
+
+      // Make nav sticky and solid
+      nav.classList.add('!bg-[#050505]', 'border-b', 'border-white/10');
+      nav.style.position = 'fixed';
+      nav.style.top = '0';
+
+      // Subtle bloom on the stage
+      gsap.to(stage, {
+        duration: 1.1,
+        boxShadow: '0 0 80px -20px rgba(0,255,157,0.08)',
+        ease: 'power2.out'
+      });
+    }
+
+    // (All 3090 rig builder code fully removed)
+
+    // Big 3090 disassemble / arcs
+    function init3090Interactions() {
+      const disassembleBtn = document.getElementById('disassemble-btn');
+      const arcBtn = document.getElementById('arc-btn');
+      const reassembleBtn = document.getElementById('reassemble-btn');
+      const bigShell = document.getElementById('big-gpu-shell');
+      const bigShroud = document.getElementById('big-shroud');
+      const bigPcb = document.getElementById('big-pcb');
+      const bigVram = document.getElementById('big-vram');
+
+      if (!disassembleBtn || !bigShell) return;
+
+      disassembleBtn.addEventListener('click', () => {
+        if (bigShroud) gsap.to(bigShroud, { y: -38, opacity: 0.4, duration: 0.6, ease: 'power2.inOut' });
+        if (bigPcb) gsap.to(bigPcb, { y: 12, scale: 0.96, duration: 0.55, ease: 'power2.out' });
+        if (bigVram) {
+          gsap.to(bigVram.children, {
+            y: (i) => (i % 2 === 0 ? -18 : 14),
+            x: (i) => (i - 2.5) * 3,
+            opacity: 0.5,
+            duration: 0.65,
+            stagger: 0.03,
+            ease: 'power2.out'
+          });
+        }
+      });
+
+      reassembleBtn.addEventListener('click', () => {
+        if (bigShroud) gsap.to(bigShroud, { y: 0, opacity: 1, duration: 0.55, ease: 'back.out(1.1)' });
+        if (bigPcb) gsap.to(bigPcb, { y: 0, scale: 1, duration: 0.5, ease: 'power2.out' });
+        if (bigVram) {
+          gsap.to(bigVram.children, {
+            y: 0, x: 0, opacity: 1,
+            duration: 0.5,
+            stagger: 0.02,
+            ease: 'back.out(1.4)'
+          });
+        }
+      });
+
+      arcBtn.addEventListener('click', () => {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", "absolute inset-0 w-full h-full pointer-events-none");
+        svg.setAttribute("viewBox", "0 0 320 200");
+        svg.innerHTML = `
+          <path class="arc" d="M40 60 Q 110 42, 180 68" fill="none" stroke="#00ff9d" stroke-width="1.5" stroke-opacity="0.75"/>
+          <path class="arc" d="M60 110 Q 140 95, 210 115" fill="none" stroke="#00ff9d" stroke-width="1" stroke-opacity="0.5"/>
+        `;
+        bigShell.appendChild(svg);
+        setTimeout(() => svg.remove(), 1650);
+      });
+    }
+
+    // DGX Holographic canvas (simple token streams)
+    function initDgxHolo() {
+      const canvas = document.getElementById('dgx-holo');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let tokens = [];
+
+      function resize() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      for (let i = 0; i < 11; i++) {
+        tokens.push({
+          x: Math.random() * canvas.width,
+          y: 30 + Math.random() * (canvas.height - 70),
+          speed: 0.6 + Math.random() * 1.1,
+          life: 40 + Math.random() * 60
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#00ff9d';
+        ctx.fillStyle = '#00ff9d';
+        ctx.font = '9px monospace';
+
+        tokens.forEach((t, i) => {
+          t.x += t.speed;
+          t.life--;
+          if (t.x > canvas.width || t.life <= 0) {
+            t.x = -20;
+            t.y = 30 + Math.random() * (canvas.height - 70);
+            t.life = 50 + Math.random() * 50;
+          }
+          const alpha = Math.max(0.15, t.life / 70);
+          ctx.globalAlpha = alpha;
+          ctx.fillText('•', t.x, t.y);
+          if (i % 3 === 0) ctx.fillText('TOKEN', t.x + 8, t.y);
+        });
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // Neural visualization on MacBook section
+    function initNeuralViz() {
+      const canvas = document.getElementById('neural-viz');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let nodes = [];
+      let links = [];
+
+      function resize() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      // Create nodes
+      for (let i = 0; i < 14; i++) {
+        nodes.push({
+          x: 30 + Math.random() * (canvas.width - 60),
+          y: 18 + Math.random() * (canvas.height - 40),
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          r: 2.2 + Math.random() * 1.4
+        });
+      }
+      // Links
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          if (Math.random() < 0.38) links.push([i, j]);
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'rgba(0,255,157,0.35)';
+        ctx.fillStyle = '#00ff9d';
+
+        // Update nodes (gentle movement)
+        nodes.forEach(n => {
+          n.x += n.vx;
+          n.y += n.vy;
+          if (n.x < 18 || n.x > canvas.width - 18) n.vx *= -1;
+          if (n.y < 12 || n.y > canvas.height - 12) n.vy *= -1;
+        });
+
+        // Draw links
+        ctx.lineWidth = 0.8;
+        links.forEach(([a, b]) => {
+          const na = nodes[a], nb = nodes[b];
+          ctx.beginPath();
+          ctx.moveTo(na.x, na.y);
+          ctx.lineTo(nb.x, nb.y);
+          ctx.stroke();
+        });
+
+        // Draw nodes
+        nodes.forEach(n => {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // Prompt panel helper
+    function showPromptPanel(el) {
+      const promptText = el.getAttribute('data-prompt') || 'Prompt not found for this visual.';
+      const panel = document.createElement('div');
+      panel.className = 'fixed inset-0 bg-black/90 z-[80] flex items-center justify-center p-6';
+      panel.innerHTML = `
+        <div class="max-w-2xl w-full bg-[#0a0a0a] border border-white/10 rounded-3xl p-7" onclick="event.stopImmediatePropagation()">
+          <div class="flex justify-between items-center mb-4">
+            <div class="font-semibold tracking-tight">/imagine Prompt + Visual Direction</div>
+            <button class="text-[#666] hover:text-white text-xl leading-none" onclick="this.closest('.fixed').remove()">×</button>
+          </div>
+          <div class="prompt-panel bg-black/60 border border-white/10 rounded-2xl p-5 text-[#00ff9d] text-sm whitespace-pre-wrap">${promptText}</div>
+          <div class="mt-4 text-xs text-[#666]">Use exactly as written or adapt for Midjourney / Flux / SD3. The goal is always the same: high-end product photography mixed with underground local AI energy — cinematic, slightly over-the-top, but never generic.</div>
+        </div>
+      `;
+      document.body.appendChild(panel);
+      panel.onclick = () => panel.remove();
+    }
+
+    // Active nav link on scroll
+    function initActiveNav() {
+      const sections = ['hardware', 'tools', 'culture', 'levels'];
+      const links = document.querySelectorAll('nav a');
+
+      window.addEventListener('scroll', () => {
+        let current = '';
+        sections.forEach(id => {
+          const section = document.getElementById(id);
+          if (!section) return;
+          const rect = section.getBoundingClientRect();
+          if (rect.top <= 140) current = id;
+        });
+
+        links.forEach(link => {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === `#${current}`) link.classList.add('active');
+        });
+      });
+    }
+
+    // ==================== VIDEO PLAYLIST CONFIG ====================
+    const VIDEO_PLAYLIST = [
+      { src: 'assets/videos/01-3060.mp4', label: 'RTX 3060 — THE ENTRY' },
+      { src: 'assets/videos/02-3090-v2.mp4', label: 'RTX 3090 — THE ONE THAT WON’T DIE' },
+      { src: 'assets/videos/03-6000-blackwell.mp4', label: 'RTX 6000 PRO BLACKWELL — THE PROFESSIONAL' },
+      { src: 'assets/videos/04-dgx.mp4', label: 'DGX SPARK — SMALL BOX, SERIOUS POWER' },
+      { src: 'assets/videos/05-macbook.mp4', label: 'MACBOOK PRO — THE QUIET PATH' }
+    ];
+
+    // ==================== SEQUENTIAL CINEMATIC VIDEO PLAYLIST ====================
+    function initCinematicVideo() {
+      const video = document.getElementById('hero-video');
+      if (!video) return;
+
+      video.muted = true;
+      video.playsInline = true;
+
+      // Sequential playlist of individual device videos
+      const playlist = [
+        'assets/videos/01-3060.mp4',
+        'assets/videos/02-3090-v2.mp4',        // New regenerated 3090
+        'assets/videos/03-6000-blackwell.mp4', // New Blackwell 6000
+        'assets/videos/04-dgx.mp4',
+        'assets/videos/05-macbook.mp4'
+      ];
+
+      const chapterNames = [
+        "RTX 3060 — THE ENTRY",
+        "RTX 3090 — THE ONE THAT WON’T DIE",
+        "RTX 6000 PRO BLACKWELL — THE PROFESSIONAL",
+        "DGX SPARK — SMALL BOX, SERIOUS POWER",
+        "MACBOOK PRO — THE QUIET PATH"
+      ];
+
+      let currentIndex = 0;
+
+      function playNext() {
+        video.src = playlist[currentIndex];
+        video.play().catch(() => {});
+
+        const chapterLabel = document.getElementById('video-chapter');
+        if (chapterLabel) chapterLabel.textContent = chapterNames[currentIndex];
+      }
+
+      video.addEventListener('ended', () => {
+        currentIndex = (currentIndex + 1) % playlist.length;
+        playNext();
+      });
+
+      // Start the journey
+      playNext();
+    }
+
+    // Boot everything
+    function boot() {
+      initTailwind();
+      initCinematicVideo();        // Simple cinematic autoplay — the film just plays
+      init3090Interactions();
+      initDgxHolo();
+      initNeuralViz();
+      initActiveNav();
+
+      // Make nav solid background when scrolling
+      const navEl = document.getElementById('nav');
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 30) {
+          navEl.classList.add('bg-[#050505]', 'border-b', 'border-white/10');
+        } else {
+          navEl.classList.remove('bg-[#050505]', 'border-b', 'border-white/10');
+        }
+      }, { passive: true });
+
+
+
+      // (Keyboard easter egg for old 3090 rig builder removed)
+
+      console.log('%c[Local Inference] Concept page initialized. All interactions ready.', 'color:#444');
+    }
+
+    window.onload = boot;
+  </script>
+</body>
+</html>

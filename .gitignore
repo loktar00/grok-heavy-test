@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Dependencies (if any added later)
+node_modules/
+
+# Large video files (optional - comment out if you want to track them)
+# assets/videos/*.mp4
+
+# Build artifacts
+dist/
+build/
