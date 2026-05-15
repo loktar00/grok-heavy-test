@@ -216,11 +216,12 @@
       <div class="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-black/75"></div>
       <div class="absolute inset-0 bg-[radial-gradient(#00ff9d_0.5px,transparent_1px)] bg-[length:4px_4px] opacity-[0.03]"></div>
 
-      <!-- Sound toggle (subtle) -->
+      <!-- Sound toggle -->
       <button id="sound-toggle"
-              class="absolute bottom-5 right-5 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-all hover:bg-black/70"
+              class="absolute bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-black/65 px-3.5 py-2 text-white backdrop-blur-md transition-all hover:bg-black/85 hover:scale-105"
               aria-label="Toggle sound">
-        <span id="sound-icon">🔇</span>
+        <span id="sound-icon" class="text-xl">🔇</span>
+        <span id="sound-label" class="text-[10px] tracking-[1px] opacity-80">Click for sound</span>
       </button>
 
     </div>
@@ -1023,6 +1024,14 @@
 
       function updateSoundUI() {
         if (icon) icon.textContent = isMuted ? '🔇' : '🔊';
+
+        const label = document.getElementById('sound-label');
+        const hasInteracted = localStorage.getItem('hasInteractedWithSound') === 'true';
+
+        if (label) {
+          // Only show "Click for sound" if user has never unmuted before
+          label.style.display = (isMuted && !hasInteracted) ? 'inline' : 'none';
+        }
       }
 
       function applyMuteState() {
@@ -1046,9 +1055,10 @@
         toggleBtn.addEventListener('click', () => {
           isMuted = !isMuted;
           localStorage.setItem('heroVideoMuted', isMuted);
+          localStorage.setItem('hasInteractedWithSound', 'true');
           applyMuteState();
 
-          // If we just unmuted and video is paused (edge case), resume it
+          // If we just unmuted and video is paused, resume it
           if (!isMuted && video.paused) {
             video.play().catch(() => {});
           }
