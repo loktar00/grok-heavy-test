@@ -216,11 +216,12 @@
       <div class="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-black/75"></div>
       <div class="absolute inset-0 bg-[radial-gradient(#00ff9d_0.5px,transparent_1px)] bg-[length:4px_4px] opacity-[0.03]"></div>
 
-
-
-
-
-
+      <!-- Sound toggle (subtle) -->
+      <button id="sound-toggle"
+              class="absolute bottom-5 right-5 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-all hover:bg-black/70"
+              aria-label="Toggle sound">
+        <span id="sound-icon">🔇</span>
+      </button>
 
     </div>
   </header>
@@ -1000,45 +1001,71 @@
     // ==================== SEQUENTIAL CINEMATIC VIDEO PLAYLIST ====================
     function initCinematicVideo() {
       const video = document.getElementById('hero-video');
+      const toggleBtn = document.getElementById('sound-toggle');
+      const icon = document.getElementById('sound-icon');
+
       if (!video) return;
 
       video.muted = true;
       video.playsInline = true;
 
-      // Sequential playlist of individual device videos
+      // === VIDEO PLAYLIST ===
       const playlist = [
-        'assets/videos/01-3060.mp4',
-        'assets/videos/02-3090-v2.mp4',        // New regenerated 3090
-        'assets/videos/03-6000-blackwell.mp4', // New Blackwell 6000
-        'assets/videos/04-dgx.mp4',
-        'assets/videos/05-macbook.mp4'
-      ];
-
-      const chapterNames = [
-        "RTX 3060 — THE ENTRY",
-        "RTX 3090 — THE ONE THAT WON’T DIE",
-        "RTX 6000 PRO BLACKWELL — THE PROFESSIONAL",
-        "DGX SPARK — SMALL BOX, SERIOUS POWER",
-        "MACBOOK PRO — THE QUIET PATH"
+        { src: 'assets/videos/01-3060.mp4', label: 'RTX 3060 — THE ENTRY' },
+        { src: 'assets/videos/02-3090-v2.mp4', label: 'RTX 3090 — THE ONE THAT WON’T DIE' },
+        { src: 'assets/videos/03-6000-blackwell.mp4', label: 'RTX 6000 PRO BLACKWELL — THE PROFESSIONAL' },
+        { src: 'assets/videos/04-dgx.mp4', label: 'DGX SPARK — SMALL BOX, SERIOUS POWER' },
+        { src: 'assets/videos/05-macbook.mp4', label: 'MACBOOK PRO — THE QUIET PATH' }
       ];
 
       let currentIndex = 0;
+      let isMuted = localStorage.getItem('heroVideoMuted') !== 'false';
+
+      function updateSoundUI() {
+        if (icon) icon.textContent = isMuted ? '🔇' : '🔊';
+      }
+
+      function applyMuteState() {
+        video.muted = isMuted;
+        if (!isMuted) video.volume = 0.7;
+        updateSoundUI();
+      }
 
       function playNext() {
-        video.src = playlist[currentIndex];
+        const item = playlist[currentIndex];
+        video.src = item.src;
+        applyMuteState();
         video.play().catch(() => {});
 
         const chapterLabel = document.getElementById('video-chapter');
-        if (chapterLabel) chapterLabel.textContent = chapterNames[currentIndex];
+        if (chapterLabel) chapterLabel.textContent = item.label;
       }
 
+      // Sound toggle button
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+          isMuted = !isMuted;
+          localStorage.setItem('heroVideoMuted', isMuted);
+          applyMuteState();
+
+          // If we just unmuted and video is paused (edge case), resume it
+          if (!isMuted && video.paused) {
+            video.play().catch(() => {});
+          }
+        });
+      }
+
+      // When a video ends, play the next one (respecting current mute state)
       video.addEventListener('ended', () => {
         currentIndex = (currentIndex + 1) % playlist.length;
         playNext();
       });
 
-      // Start the journey
+      // Start the first video
       playNext();
+
+      // Initial UI state
+      updateSoundUI();
     }
 
     // Boot everything
